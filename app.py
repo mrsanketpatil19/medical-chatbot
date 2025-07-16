@@ -9,6 +9,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain
 from datetime import datetime
 import ast
+import requests
 from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
@@ -231,11 +232,8 @@ def generate_patient_summary(patient_id):
 def setup_llm_chain():
     """Initialize the LLM chain for processing questions."""
     try:
-        # API key not needed for Ollama (local model)
-        # If you want to switch back to OpenAI, uncomment these lines:
-        # api_key = os.getenv("OPENAI_API_KEY")
-        # if not api_key:
-        #     raise ValueError("OPENAI_API_KEY environment variable is not set")
+        # Get API key for fallback to OpenAI in cloud deployment
+        api_key = os.getenv("OPENAI_API_KEY")
         
         # Create a clean environment without proxy settings
         clean_env = {k: v for k, v in os.environ.items() 
@@ -247,23 +245,35 @@ def setup_llm_chain():
         os.environ.update(clean_env)
         
         try:
-            # Initialize the language model - Using Ollama (local) instead of OpenAI
-            # Comment out the OpenAI version and use Ollama for privacy and cost savings
+            # Initialize the language model - Auto-detect environment
+            # Try Ollama first (for local development), fallback to OpenAI (for cloud deployment)
             
-            # OpenAI version (requires API key and internet):
-            # llm = ChatOpenAI(
-            #     model_name="gpt-4",  # or "gpt-3.5-turbo" for faster/cheaper responses
-            #     temperature=0.7,
-            #     openai_api_key=api_key,
-            #     request_timeout=30
-            # )
-            
-            # Ollama version (local, no API key needed):
-            llm = Ollama(
-                model="llama3.1:8b",  # Use the model we downloaded
-                temperature=0.7,
-                base_url="http://localhost:11434"  # Default Ollama URL
-            )
+            try:
+                # Try Ollama first (local development)
+                import requests
+                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                if response.status_code == 200:
+                    # Ollama is available - use local model
+                    llm = Ollama(
+                        model="llama3.1:8b",
+                        temperature=0.7,
+                        base_url="http://localhost:11434"
+                    )
+                    print("Using local Ollama model")
+                else:
+                    raise Exception("Ollama not available")
+            except:
+                # Fallback to OpenAI for cloud deployment
+                if not api_key:
+                    raise ValueError("OpenAI API key required for cloud deployment. Set OPENAI_API_KEY environment variable.")
+                
+                llm = ChatOpenAI(
+                    model_name="gpt-3.5-turbo",  # Using 3.5-turbo for cost efficiency
+                    temperature=0.7,
+                    openai_api_key=api_key,
+                    request_timeout=30
+                )
+                print("Using OpenAI API (cloud deployment)")
             
             # Define the prompt template
             prompt_template = """
@@ -285,9 +295,9 @@ def setup_llm_chain():
             
             Please respond in a natural, conversational way:"""
             
-            # For Ollama, we'll use a simpler approach without LLMChain
-            # Return the llm and prompt_template separately
-            return {"llm": llm, "prompt_template": prompt_template}
+            # Return the llm, prompt_template, and model type for proper invocation
+            model_type = "ollama" if hasattr(llm, 'base_url') and "localhost" in str(llm.base_url) else "openai"
+            return {"llm": llm, "prompt_template": prompt_template, "model_type": model_type}
             
         except Exception as e:
             raise ValueError(f"Failed to initialize LLM (Ollama): {str(e)}. Make sure Ollama is running with: brew services start ollama")
@@ -386,6 +396,7 @@ def ask():
             llm_setup = setup_llm_chain()
             llm = llm_setup["llm"]
             prompt_template = llm_setup["prompt_template"]
+            model_type = llm_setup["model_type"]
             
             # Format the prompt with patient data and conversation context
             full_context = summary + conversation_history
@@ -394,8 +405,11 @@ def ask():
                 question=question
             )
             
-            # Get response from Ollama
-            response = llm(formatted_prompt)
+            # Get response based on model type
+            if model_type == "ollama":
+                response = llm(formatted_prompt)
+            else:  # OpenAI
+                response = llm.predict(formatted_prompt)
             
             # Add response to conversation history
             patient_conversation['messages'].append({

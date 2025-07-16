@@ -1,116 +1,202 @@
-# Windsurf Patient Dashboard
+# Medical Chatbot - AI-Powered Patient Assistant
 
-A Flask-based patient dashboard application with AI-powered patient similarity search and medical data analysis.
+A comprehensive medical patient dashboard with conversational AI, featuring local privacy-focused Ollama integration and cloud deployment capabilities.
 
-## Features
+## 🚀 Features
 
-- Patient data visualization and management
-- AI-powered patient similarity search
-- Medical condition tracking
-- Medication management
-- Provider-patient relationship management
-- Interactive chat interface for medical queries
+### 🤖 **Advanced Conversational AI**
+- **Natural Language Responses**: Human-like conversations with medical professionals
+- **Follow-up Question Handling**: Context-aware responses with conversation memory
+- **Dual AI Support**: 
+  - **Local**: Ollama (Llama 3.1 8B) for privacy and cost savings
+  - **Cloud**: OpenAI GPT-3.5 Turbo for deployment
+- **Session-based Context**: Remembers conversation history per patient
 
-## Local Development
+### 📊 **Patient Data Management**
+- **Interactive Dashboards**: Real-time patient data visualization
+- **AI-Powered Similarity Search**: Find similar patients based on medical conditions
+- **Provider Analytics**: Filter and analyze data by healthcare providers
+- **Medical Condition Tracking**: Monitor treatments, medications, and outcomes
+- **Data Export**: Export filtered data for analysis
 
-1. Clone the repository
-2. Create a virtual environment:
+### 🔒 **Privacy & Security**
+- **Local AI Option**: Complete data privacy with Ollama integration
+- **No External Dependencies**: Run entirely offline for sensitive data
+- **Session Management**: Secure conversation context handling
+- **Environment Detection**: Automatic fallback between local and cloud AI
+
+### 🎨 **Modern Interface**
+- **Dark Theme**: Professional medical interface design
+- **Responsive Design**: Works seamlessly on all devices
+- **Real-time Chat**: Instant AI responses with typing indicators
+- **New Conversation**: Reset chat context for fresh discussions
+
+## 🛠 Technology Stack
+
+- **Backend**: Flask (Python), Session Management
+- **AI/ML**: 
+  - **Local**: Ollama (Llama 3.1 8B) via LangChain
+  - **Cloud**: OpenAI GPT-3.5 Turbo
+  - **ML**: scikit-learn for patient similarity
+  - **Data**: pandas/numpy for processing
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Visualization**: Chart.js for interactive charts
+- **Infrastructure**: Render deployment, GitHub integration
+
+## 📋 Prerequisites
+
+- Python 3.9+
+- pip (Python package manager)
+- Git
+- **For Local AI**: [Ollama](https://ollama.ai/) installation
+- **For Cloud Deployment**: OpenAI API key
+
+## 🔧 Installation
+
+### Local Development (with Ollama - Recommended)
+
+1. **Install Ollama** (macOS)
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   brew install ollama
    ```
-3. Install dependencies:
+
+2. **Download Llama 3.1 model**
    ```bash
+   ollama pull llama3.1:8b
+   ```
+
+3. **Start Ollama service**
+   ```bash
+   brew services start ollama
+   ```
+
+4. **Clone and setup the project**
+   ```bash
+   git clone https://github.com/mrsanketpatil19/medical-chatbot.git
+   cd medical-chatbot
+   
+   # Create virtual environment
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install dependencies
    pip install -r requirements.txt
    ```
-4. Set up environment variables (create a `.env` file):
-   ```
-   OPENAI_API_KEY=your_openai_api_key_here
-   SECRET_KEY=your_secret_key_here
-   ```
-5. Run the application:
+
+5. **Run the application**
    ```bash
    python app.py
    ```
-6. Open http://localhost:5001 in your browser
 
-## Deployment on Render
+6. **Access the dashboard**
+   Open `http://localhost:5001`
+
+### Cloud Deployment Setup
+
+1. **Set environment variables**
+   ```bash
+   # Required for cloud deployment
+   export OPENAI_API_KEY=your_openai_api_key
+   export SECRET_KEY=your_secret_key_for_sessions
+   ```
+
+2. **The app automatically detects the environment:**
+   - **Local**: Uses Ollama if available on localhost:11434
+   - **Cloud**: Falls back to OpenAI API for deployment
+
+## 🚀 Deployment on Render
 
 ### Prerequisites
-- A GitHub account
-- A Render account (free at render.com)
+- GitHub account
+- Render account (free at [render.com](https://render.com))
+- OpenAI API key
 
 ### Steps to Deploy
 
-1. **Push your code to GitHub:**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-   git push -u origin main
+1. **Push code to GitHub** (already done)
+
+2. **Connect to Render:**
+   - Go to [render.com](https://render.com) and sign up/login
+   - Click "New +" → "Web Service"
+   - Connect your GitHub account
+   - Select the `medical-chatbot` repository
+
+3. **Configure the deployment:**
+   ```
+   Name: medical-chatbot
+   Environment: Python 3
+   Build Command: pip install -r requirements.txt
+   Start Command: gunicorn app:app
    ```
 
-2. **Sign up for Render:**
-   - Go to [render.com](https://render.com)
-   - Sign up with your GitHub account
+4. **Set environment variables in Render:**
+   ```
+   OPENAI_API_KEY = your_openai_api_key_here
+   SECRET_KEY = random_secret_key_for_sessions
+   PYTHON_VERSION = 3.9.18
+   ```
 
-3. **Create a new Web Service:**
-   - Click "New +" and select "Web Service"
-   - Connect your GitHub repository
-   - Select the repository you just created
+5. **Deploy**: Click "Create Web Service"
 
-4. **Configure the service:**
-   - **Name:** `windsurf-patient-dashboard` (or any name you prefer)
-   - **Environment:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app`
-   - **Plan:** Free (or choose a paid plan if needed)
+Your app will be available at: `https://your-app-name.onrender.com`
 
-5. **Add Environment Variables:**
-   - Click on "Environment" tab
-   - Add the following variables:
-     - `OPENAI_API_KEY`: Your OpenAI API key
-     - `SECRET_KEY`: A random secret key for Flask sessions
+## 💡 Usage Examples
 
-6. **Deploy:**
-   - Click "Create Web Service"
-   - Render will automatically build and deploy your application
-   - Wait for the build to complete (usually 2-5 minutes)
+### Chat Interface
+1. Enter patient ID (e.g., `patient-0001`)
+2. Ask questions like:
+   - "Provide summary"
+   - "What are his current medications?"
+   - "What was his last blood pressure reading?"
+   - "How long has he been on Lisinopril?"
 
-7. **Access your application:**
-   - Once deployed, you'll get a URL like `https://your-app-name.onrender.com`
-   - Your application will be live and accessible to anyone!
-
-### Important Notes
-
-- **Free Tier Limitations:** Render's free tier has some limitations:
-  - Services spin down after 15 minutes of inactivity
-  - Limited bandwidth and build minutes
-  - For production use, consider upgrading to a paid plan
-
-- **Environment Variables:** Make sure to set your `OPENAI_API_KEY` in Render's environment variables section
-
-- **File Uploads:** If you need to handle file uploads, consider using cloud storage services like AWS S3 or Google Cloud Storage
-
-## Project Structure
-
+### Follow-up Conversations
+The AI remembers context within the same session:
 ```
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── runtime.txt           # Python version specification
-├── render.yaml           # Render deployment configuration
-├── csv_files/            # Patient data CSV files
-├── static/               # CSS, JS, and other static files
-├── templates/            # HTML templates
-└── README.md            # This file
+User: "Provide summary"
+AI: "Mark Johnson is a 53-year-old male with hypertension..."
+
+User: "What was his blood pressure again?"
+AI: "Mark's blood pressure reading was 131/87..."
+
+User: "How long has he been on medication?"
+AI: "Mark's been taking Lisinopril for about a week now..."
 ```
 
-## Support
+## 🔒 Privacy Features
 
-If you encounter any issues during deployment, check:
-1. Render's build logs for error messages
-2. Environment variables are properly set
-3. All dependencies are listed in `requirements.txt`
-4. The start command is correct (`gunicorn app:app`) 
+### Local Mode (Ollama)
+- ✅ Complete data privacy
+- ✅ No internet required for AI
+- ✅ Zero API costs
+- ✅ HIPAA-friendly offline operation
+
+### Cloud Mode (OpenAI)
+- ⚠️ Data sent to OpenAI servers
+- ⚠️ API costs apply
+- ✅ Better for deployment/sharing
+- ✅ No local setup required
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -m 'Add feature'`
+4. Push to branch: `git push origin feature-name`
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/mrsanketpatil19/medical-chatbot/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mrsanketpatil19/medical-chatbot/discussions)
+
+## 🌟 Acknowledgments
+
+- [Ollama](https://ollama.ai/) for local AI capabilities
+- [LangChain](https://langchain.com/) for AI framework
+- [OpenAI](https://openai.com/) for cloud AI services
+- [Render](https://render.com/) for deployment platform 
