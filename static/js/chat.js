@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatIcon = document.getElementById('chatIcon');
     const chatContainer = document.getElementById('chatContainer');
     const closeChat = document.getElementById('closeChat');
+    const newConversation = document.getElementById('newConversation');
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
     const chatMessages = document.getElementById('chatMessages');
@@ -15,6 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     closeChat.addEventListener('click', function() {
         chatContainer.classList.remove('active');
+    });
+
+    // New conversation button
+    newConversation.addEventListener('click', function() {
+        clearCurrentConversation();
     });
 
     // Send message on button click
@@ -62,6 +68,47 @@ document.addEventListener('DOMContentLoaded', function() {
         const typingIndicator = document.getElementById('typingIndicator');
         if (typingIndicator) {
             typingIndicator.remove();
+        }
+    }
+
+    // Function to clear current conversation
+    async function clearCurrentConversation() {
+        const patientId = patientIdInput.value.trim();
+        
+        if (patientId) {
+            try {
+                const response = await fetch('/clear_conversation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        patient_id: patientId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Clear the chat messages visually
+                chatMessages.innerHTML = `
+                    <div class="message bot-message">
+                        <p>Hello! I'm your medical assistant. I've started a fresh conversation. Ask me anything about ${patientId}'s records.</p>
+                    </div>
+                `;
+                
+                addMessage(data.message, false);
+                
+            } catch (error) {
+                addMessage('Error clearing conversation. Please try again.', false);
+                console.error('Error:', error);
+            }
+        } else {
+            // Just clear the visual chat if no patient ID
+            chatMessages.innerHTML = `
+                <div class="message bot-message">
+                    <p>Hello! I'm your medical assistant. Please enter a patient ID and ask me anything about their records.</p>
+                </div>
+            `;
         }
     }
 

@@ -139,24 +139,41 @@ body::before {
     font-weight: 600;
 }
 
+.chat-header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.new-conversation-btn,
 .close-btn {
     background: none;
     border: none;
     color: white;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
-    padding: 5px;
+    padding: 6px;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
+.new-conversation-btn:hover,
 .close-btn:hover {
     background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.new-conversation-btn {
+    font-size: 14px;
+}
+
+.new-conversation-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .chat-messages {

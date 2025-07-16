@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import numpy as np
 from langchain.chat_models import ChatOpenAI
+from langchain_community.llms import Ollama
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain
 from datetime import datetime
@@ -230,10 +231,11 @@ def generate_patient_summary(patient_id):
 def setup_llm_chain():
     """Initialize the LLM chain for processing questions."""
     try:
-        # First, ensure we have the API key
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        # API key not needed for Ollama (local model)
+        # If you want to switch back to OpenAI, uncomment these lines:
+        # api_key = os.getenv("OPENAI_API_KEY")
+        # if not api_key:
+        #     raise ValueError("OPENAI_API_KEY environment variable is not set")
         
         # Create a clean environment without proxy settings
         clean_env = {k: v for k, v in os.environ.items() 
@@ -245,32 +247,50 @@ def setup_llm_chain():
         os.environ.update(clean_env)
         
         try:
-            # Initialize the language model
-            llm = ChatOpenAI(
-                model_name="gpt-4",  # or "gpt-3.5-turbo" for faster/cheaper responses
+            # Initialize the language model - Using Ollama (local) instead of OpenAI
+            # Comment out the OpenAI version and use Ollama for privacy and cost savings
+            
+            # OpenAI version (requires API key and internet):
+            # llm = ChatOpenAI(
+            #     model_name="gpt-4",  # or "gpt-3.5-turbo" for faster/cheaper responses
+            #     temperature=0.7,
+            #     openai_api_key=api_key,
+            #     request_timeout=30
+            # )
+            
+            # Ollama version (local, no API key needed):
+            llm = Ollama(
+                model="llama3.1:8b",  # Use the model we downloaded
                 temperature=0.7,
-                openai_api_key=api_key,
-                request_timeout=30
+                base_url="http://localhost:11434"  # Default Ollama URL
             )
             
             # Define the prompt template
             prompt_template = """
-            You are a helpful medical assistant analyzing patient data. 
-            Given the following patient summary, answer the user's question.
-            If you don't know the answer, say you don't know, don't try to make up an answer.
+            You are a friendly, knowledgeable medical assistant helping healthcare professionals understand patient information. 
+            Speak naturally and conversationally, as if you're having a professional discussion with a colleague.
             
-            Patient Summary:
+            Based on the patient data below, please answer the user's question in a warm, human-like manner.
+            - Use natural language and speak as if you're talking to a friend
+            - Be thorough but conversational
+            - If you notice important patterns or concerns, mention them naturally
+            - If you don't have specific information, say so honestly
+            - For follow-up questions, reference previous context when helpful
+            - Include relevant details like dates, values, and trends when discussing medical information
+            
+            Patient Information:
             {patient_summary}
             
             Question: {question}
             
-            Answer in a clear and concise manner:"""
+            Please respond in a natural, conversational way:"""
             
-            prompt = ChatPromptTemplate.from_template(prompt_template)
-            return LLMChain(llm=llm, prompt=prompt)
+            # For Ollama, we'll use a simpler approach without LLMChain
+            # Return the llm and prompt_template separately
+            return {"llm": llm, "prompt_template": prompt_template}
             
         except Exception as e:
-            raise ValueError(f"Failed to initialize ChatOpenAI: {str(e)}")
+            raise ValueError(f"Failed to initialize LLM (Ollama): {str(e)}. Make sure Ollama is running with: brew services start ollama")
             
     except Exception as e:
         print(f"Error setting up LLM chain: {str(e)}")
@@ -285,6 +305,29 @@ def setup_llm_chain():
 def home():
     return render_template('index.html')
 
+@app.route('/clear_conversation', methods=['POST'])
+def clear_conversation():
+    """Clear conversation context for a specific patient or all patients"""
+    data = request.json
+    patient_id = data.get('patient_id') if data else None
+    
+    if 'conversation_context' in session:
+        if patient_id:
+            # Clear conversation for specific patient
+            if patient_id in session['conversation_context']:
+                del session['conversation_context'][patient_id]
+                session.modified = True
+                return jsonify({'message': f'Conversation cleared for patient {patient_id}'})
+            else:
+                return jsonify({'message': f'No conversation found for patient {patient_id}'})
+        else:
+            # Clear all conversations
+            session['conversation_context'] = {}
+            session.modified = True
+            return jsonify({'message': 'All conversations cleared'})
+    
+    return jsonify({'message': 'No conversations to clear'})
+
 @app.route('/ask', methods=['POST'])
 def ask():
     data = request.json
@@ -295,16 +338,74 @@ def ask():
         return jsonify({'error': 'Patient ID and question are required'}), 400
     
     try:
-        # Generate patient summary
-        summary = generate_patient_summary(patient_id)
+        # Initialize conversation context if it doesn't exist
+        if 'conversation_context' not in session:
+            session['conversation_context'] = {}
+        
+        # Get or create conversation for this patient
+        if patient_id not in session['conversation_context']:
+            session['conversation_context'][patient_id] = {
+                'messages': [],
+                'summary_generated': False
+            }
+        
+        patient_conversation = session['conversation_context'][patient_id]
+        
+        # Generate patient summary (only once per conversation or if explicitly requested)
+        if not patient_conversation['summary_generated'] or 'summary' in question.lower():
+            summary = generate_patient_summary(patient_id)
+            patient_conversation['summary_generated'] = True
+        else:
+            # For follow-up questions, use a shorter context
+            summary = f"Continue discussing patient {patient_id}. Previous conversation context available."
+        
+        # Add current question to conversation history
+        patient_conversation['messages'].append({
+            'type': 'question',
+            'content': question,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        # Keep only last 5 exchanges to avoid context overflow
+        if len(patient_conversation['messages']) > 10:
+            patient_conversation['messages'] = patient_conversation['messages'][-10:]
+        
+        # Build conversation context for better follow-ups
+        conversation_history = ""
+        if len(patient_conversation['messages']) > 1:
+            recent_messages = patient_conversation['messages'][-6:-1]  # Last 3 Q&A pairs (excluding current)
+            conversation_history = "\n\nRecent conversation:\n"
+            for msg in recent_messages:
+                if msg['type'] == 'question':
+                    conversation_history += f"Previous question: {msg['content']}\n"
+                elif msg['type'] == 'answer':
+                    conversation_history += f"Previous answer: {msg['content'][:200]}...\n"
         
         # Get LLM response
         try:
-            llm_chain = setup_llm_chain()
-            response = llm_chain.run(
-                patient_summary=summary,
+            llm_setup = setup_llm_chain()
+            llm = llm_setup["llm"]
+            prompt_template = llm_setup["prompt_template"]
+            
+            # Format the prompt with patient data and conversation context
+            full_context = summary + conversation_history
+            formatted_prompt = prompt_template.format(
+                patient_summary=full_context,
                 question=question
             )
+            
+            # Get response from Ollama
+            response = llm(formatted_prompt)
+            
+            # Add response to conversation history
+            patient_conversation['messages'].append({
+                'type': 'answer',
+                'content': response,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Save session
+            session.modified = True
             
             return jsonify({
                 'response': response,
