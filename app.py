@@ -249,19 +249,20 @@ def setup_llm_chain():
             # Try Ollama first (for local development), fallback to OpenAI (for cloud deployment)
             
             try:
-                # Try Ollama first (local development)
-                import requests
-                response = requests.get("http://localhost:11434/api/tags", timeout=5)
-                if response.status_code == 200:
-                    # Ollama is available - use local model
-                    llm = Ollama(
-                        model="llama3.1:8b",
-                        temperature=0.7,
-                        base_url="http://localhost:11434"
-                    )
-                    print("Using local Ollama model")
-                else:
-                    raise Exception("Ollama not available")
+                                 # Try Ollama (local or remote via tunnel)
+                 import requests
+                 ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+                 response = requests.get(f"{ollama_base_url}/api/tags", timeout=10)
+                 if response.status_code == 200:
+                     # Ollama is available - use model
+                     llm = Ollama(
+                         model="llama3.1:8b",
+                         temperature=0.7,
+                         base_url=ollama_base_url
+                     )
+                     print(f"Using Ollama model at: {ollama_base_url}")
+                 else:
+                     raise Exception("Ollama not available")
             except:
                 # Fallback to OpenAI for cloud deployment
                 if not api_key:

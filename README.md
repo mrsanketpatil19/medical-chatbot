@@ -104,39 +104,99 @@ A comprehensive medical patient dashboard with conversational AI, featuring loca
    - **Local**: Uses Ollama if available on localhost:11434
    - **Cloud**: Falls back to OpenAI API for deployment
 
-## 🚀 Deployment on Render
+## 🚀 Deployment on Render + Local Ollama
+
+### 🎯 Deployment Strategy
+Since Render can't run Ollama directly, we'll use a tunnel to connect your deployed app to your local Ollama instance.
 
 ### Prerequisites
 - GitHub account
 - Render account (free at [render.com](https://render.com))
-- OpenAI API key
+- Local Ollama running with Llama 3.1 8B
+- ngrok for tunneling (or Tailscale for production)
 
-### Steps to Deploy
+### 🔧 Option A: Quick Deploy with ngrok
 
-1. **Push code to GitHub** (already done)
+#### Step 1: Set Up Local Ollama Tunnel
 
-2. **Connect to Render:**
+1. **Make sure Ollama is running:**
+   ```bash
+   brew services start ollama
+   ollama run llama3.1:8b
+   ```
+
+2. **Install ngrok (if not installed):**
+   ```bash
+   brew install ngrok
+   ```
+
+3. **Run our tunnel setup script:**
+   ```bash
+   ./setup_tunnel.sh
+   ```
+   
+   This will:
+   - Check Ollama status
+   - Start ngrok tunnel
+   - Give you a public URL like `https://abc123.ngrok-free.app`
+
+#### Step 2: Deploy to Render
+
+1. **Connect to Render:**
    - Go to [render.com](https://render.com) and sign up/login
    - Click "New +" → "Web Service"
    - Connect your GitHub account
    - Select the `medical-chatbot` repository
 
-3. **Configure the deployment:**
+2. **Configure the deployment:**
    ```
-   Name: medical-chatbot
-   Environment: Python 3
-   Build Command: pip install -r requirements.txt
-   Start Command: gunicorn app:app
+   Name: medical-chatbot-ollama
+   Environment: Docker
+   Dockerfile Path: ./Dockerfile
    ```
 
-4. **Set environment variables in Render:**
+3. **Set environment variables in Render:**
    ```
-   OPENAI_API_KEY = your_openai_api_key_here
+   OLLAMA_BASE_URL = https://your-ngrok-url.ngrok-free.app
    SECRET_KEY = random_secret_key_for_sessions
-   PYTHON_VERSION = 3.9.18
+   OPENAI_API_KEY = your_backup_openai_key (optional)
    ```
 
-5. **Deploy**: Click "Create Web Service"
+4. **Deploy**: Click "Create Web Service"
+
+### 🔒 Option B: Production Deploy with Tailscale
+
+For longer-term production use:
+
+1. **Install Tailscale:**
+   ```bash
+   brew install tailscale
+   tailscale up
+   ```
+
+2. **Get your Tailscale machine URL:**
+   ```bash
+   tailscale status
+   ```
+   
+   Your machine will have a URL like: `https://machine-name.tail-scale-domain.ts.net`
+
+3. **Use Tailscale URL in Render:**
+   ```
+   OLLAMA_BASE_URL = https://your-machine.ts.net:11434
+   ```
+
+### 🧪 Testing Your Deployment
+
+1. **Test local tunnel:**
+   ```bash
+   curl https://your-ngrok-url.ngrok-free.app/api/tags
+   ```
+
+2. **Test deployed app:**
+   - Visit `https://your-app.onrender.com`
+   - Enter patient ID: `patient-0001`
+   - Ask: "Provide summary"
 
 Your app will be available at: `https://your-app-name.onrender.com`
 
